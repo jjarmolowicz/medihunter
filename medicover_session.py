@@ -6,6 +6,8 @@ from datetime import datetime, timedelta
 
 import requests
 from bs4 import BeautifulSoup
+from requests.adapters import HTTPAdapter
+from urllib3 import Retry
 
 Appointment = namedtuple(
     "Appointment", ["doctor_name", "clinic_name", "appointment_datetime", "is_phone_consultation"]
@@ -29,6 +31,7 @@ class MedicoverSession:
             "Connection": "keep-alive",
             "Upgrade-Insecure-Requests": "1",
         }
+        self.configure_session()
 
     def extract_data_from_login_form(self, page_text: str):
         """ Extract values from input fields and prepare data for login request. """
@@ -331,6 +334,13 @@ class MedicoverSession:
                 break
             page += 1
         return appointments
+
+    def configure_session(self):
+        retries = Retry(total=10,
+                        backoff_factor=1,
+                        status_forcelist=[500, 502, 503, 504, 104])
+
+        self.session.mount('https://', HTTPAdapter(max_retries=retries))
 
 
 def load_available_search_params(field_name):
