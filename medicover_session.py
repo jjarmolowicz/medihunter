@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 
 import requests
 from bs4 import BeautifulSoup
+from requests import HTTPError
 from requests.adapters import HTTPAdapter
 from urllib3 import Retry
 
@@ -157,6 +158,7 @@ class MedicoverSession:
     def _parse_search_results(self, result):
         """
         take search results in json format end transporm it to list of namedtuples
+        :type result: requests.Response
         """
 
         result = result.json()
@@ -236,6 +238,7 @@ class MedicoverSession:
             headers=headers,
         )
         try:
+            self.check_response_correctness(result)
             appointments = self._parse_search_results(result)
         except KeyError as exc:
             return []
@@ -260,6 +263,12 @@ class MedicoverSession:
             ]
 
         return appointments
+
+    def check_response_correctness(self, result):
+        result.raise_for_status()
+        if result.is_redirect or result.is_permanent_redirect:
+            msg = u'%s Unexpected redirect Returned: %s for url: %s' % (result.status_code, result.headers['location'], result.url)
+            raise HTTPError(msg, response=result)
 
     def load_search_form(self):
         return self.session.get(
